@@ -1767,6 +1767,75 @@ async function serveSeoIndexHtml(req: any, res: any, metadata: {
   }
 }
 
+// Serve a fully dynamic XML sitemap containing all 7,000+ real and generated scholarly articles under the active domain
+app.get("/sitemap.xml", (req, res) => {
+  const host = req.headers.host || "internet-library.demo";
+  const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const baseUrl = `${protocol}://${host}`;
+
+  res.header("Content-Type", "application/xml; charset=utf-8");
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  // 1. Core static marketing and functional routes
+  const staticPaths = [
+    { path: "", priority: "1.0", changefreq: "daily" },
+    { path: "/explore", priority: "0.9", changefreq: "weekly" },
+    { path: "/materials", priority: "0.8", changefreq: "weekly" },
+    { path: "/paths", priority: "0.9", changefreq: "weekly" },
+    { path: "/compare", priority: "0.7", changefreq: "weekly" },
+    { path: "/resources", priority: "0.7", changefreq: "weekly" },
+    { path: "/community", priority: "0.6", changefreq: "weekly" },
+    { path: "/profile", priority: "0.6", changefreq: "weekly" },
+    { path: "/page/privacy", priority: "0.5", changefreq: "monthly" },
+    { path: "/page/terms", priority: "0.5", changefreq: "monthly" },
+    { path: "/page/about", priority: "0.5", changefreq: "monthly" },
+    { path: "/page/contact", priority: "0.5", changefreq: "monthly" }
+  ];
+
+  for (const p of staticPaths) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}${p.path}</loc>\n`;
+    xml += `    <lastmod>2026-07-17</lastmod>\n`;
+    xml += `    <changefreq>${p.changefreq}</changefreq>\n`;
+    xml += `    <priority>${p.priority}</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // 2. Curated categorization routes
+  const categories = ["Articles", "News", "Tech", "APIs", "Videos", "Posts"];
+  for (const cat of categories) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/category/${encodeURIComponent(cat)}</loc>\n`;
+    xml += `    <lastmod>2026-07-17</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n`;
+    xml += `    <priority>0.8</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // 3. Dynamic and static peer-reviewed scholarly articles (around 7,300 items)
+  for (const item of CURATED_LIBRARY) {
+    const dateStr = item.date || "2026-07-17";
+    const escapedId = item.id
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/article/${escapedId}</loc>\n`;
+    xml += `    <lastmod>${dateStr}</lastmod>\n`;
+    xml += `    <changefreq>monthly</changefreq>\n`;
+    xml += `    <priority>0.6</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  xml += `</urlset>\n`;
+  res.send(xml);
+});
+
 // Intercept sitemap routes for crawler optimization
 app.get([
   "/",
