@@ -1,0 +1,6 @@
+{
+  "name": "Internet Library",
+  "description": "A modern web-based library and discovery hub curated with hundreds of educational resources, featuring live RSS feeds, real-time news APIs, Wikipedia integrations, YouTube lookup, and smart summaries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

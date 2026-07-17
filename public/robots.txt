@@ -1,0 +1,5 @@
+# robots.txt for Internet Library
+User-agent: *
+Allow: /
+
+Sitemap: https://internet-library.demo/sitemap.xml
