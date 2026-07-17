@@ -1769,8 +1769,17 @@ async function serveSeoIndexHtml(req: any, res: any, metadata: {
 
 // Serve a fully dynamic XML sitemap containing all 7,000+ real and generated scholarly articles under the active domain
 app.get("/sitemap.xml", (req, res) => {
-  const host = req.headers.host || "internet-library.demo";
-  const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  let host = req.headers.host || "mediumseagreen-mantis-223828.hostingersite.com";
+  
+  // Force HTTPS for all production and external domains (Hostinger default, custom domains, etc.)
+  const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
+  const protocol = isLocal ? "http" : "https";
+  
+  // In production, ensure we strip any internal container ports like :3000 if they leaked into the host header
+  if (!isLocal && host.includes(":")) {
+    host = host.split(":")[0];
+  }
+  
   const baseUrl = `${protocol}://${host}`;
 
   res.header("Content-Type", "application/xml; charset=utf-8");
@@ -1814,15 +1823,45 @@ app.get("/sitemap.xml", (req, res) => {
     xml += `  </url>\n`;
   }
 
-  // 3. Dynamic and static peer-reviewed scholarly articles (around 7,300 items)
-  for (const item of CURATED_LIBRARY) {
-    const dateStr = item.date || "2026-07-17";
-    const escapedId = item.id
+  // Set to keep track of added article IDs to avoid duplicates between CURATED_LIBRARY and articlesCache
+  const processedArticleIds = new Set<string>();
+
+  // Helper to escape XML special characters
+  const escapeXml = (str: string) => {
+    return str
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&apos;");
+  };
+
+  // 3. User-created or compiled articles in cache (takes priority for fresh dates/updates)
+  if (articlesCache) {
+    for (const [id, item] of Object.entries(articlesCache)) {
+      if (!item) continue;
+      const dateStr = (item as any).generatedAt 
+        ? (item as any).generatedAt.split('T')[0] 
+        : "2026-07-17";
+      const escapedId = escapeXml(id);
+
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}/article/${escapedId}</loc>\n`;
+      xml += `    <lastmod>${dateStr}</lastmod>\n`;
+      xml += `    <changefreq>monthly</changefreq>\n`;
+      xml += `    <priority>0.7</priority>\n`;
+      xml += `  </url>\n`;
+      
+      processedArticleIds.add(id);
+    }
+  }
+
+  // 4. Dynamic and static peer-reviewed scholarly articles (around 7,300 items)
+  for (const item of CURATED_LIBRARY) {
+    if (processedArticleIds.has(item.id)) continue;
+    
+    const dateStr = item.date || "2026-07-17";
+    const escapedId = escapeXml(item.id);
 
     xml += `  <url>\n`;
     xml += `    <loc>${baseUrl}/article/${escapedId}</loc>\n`;
